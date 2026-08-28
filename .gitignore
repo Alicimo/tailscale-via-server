@@ -1,0 +1,8 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+.ruff_cache/
+
+# Local Nix and Python test output
+result
+result-*

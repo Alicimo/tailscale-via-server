@@ -16,9 +16,11 @@ foreground SSH session open. That session:
 2. runs the proxy by streaming this repository's Python file to remote
    `python3 - --port 39081` over that same SSH session.
 
-No remote file or remote service is installed. SSH uses BatchMode, strict host
-key checking, a connection timeout, forward-failure checking, no TTY, and
-server-alive checks. launchd restarts the session with throttled retries.
+No remote file or remote service is installed. The tunnel uses macOS's native
+SSH client so Apple-specific settings such as `UseKeychain` remain supported.
+SSH uses BatchMode, strict host key checking, a connection timeout,
+forward-failure checking, no TTY, and server-alive checks. launchd restarts the
+session with throttled retries.
 
 Only HTTPS CONNECT requests to port 443 whose host is exactly, or is a
 subdomain of, `tailscale.com` or `tailscale.io` are allowed. Tailscale

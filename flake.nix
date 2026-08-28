@@ -96,6 +96,17 @@
             pkgs.runCommand "tailscale-via-server-module-invariants" { } ''
               touch $out
             '';
+
+          native-ssh =
+            pkgs.runCommand "tailscale-via-server-native-ssh"
+              {
+                nativeBuildInputs = [ pkgs.gnugrep ];
+                tunnel = evaluated.config.launchd.user.agents."tailscale-via-server".command;
+              }
+              ''
+                grep -Fq '/usr/bin/ssh' "$tunnel"
+                touch $out
+              '';
         }
       );
     };

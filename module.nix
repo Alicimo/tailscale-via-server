@@ -35,7 +35,7 @@ let
     : > ${lib.escapeShellArg "${home}/Library/Logs/tailscale-via-server.out.log"}
     : > ${lib.escapeShellArg "${home}/Library/Logs/tailscale-via-server.err.log"}
 
-    ${lib.getExe' pkgs.openssh "ssh"} \
+    /usr/bin/ssh \
       -o BatchMode=yes \
       -o StrictHostKeyChecking=yes \
       -o ConnectTimeout=10 \

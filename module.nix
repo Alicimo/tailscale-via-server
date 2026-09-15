@@ -22,6 +22,10 @@ let
   proxyScript = pkgs.writeText "tailscale-connect-proxy.py" (
     builtins.readFile ./tailscale_connect_proxy.py
   );
+  remoteProxyCommand =
+    "exec python3 - --port ${toString cfg.remotePort} --parent-pid \"$PPID\""
+    + lib.optionalString cfg.verbose " --verbose";
+  remoteCommand = "exec /bin/sh -c ${lib.escapeShellArg remoteProxyCommand}";
   tunnel = pkgs.writeShellScript "tailscale-via-server-tunnel" ''
     set -u
 
@@ -47,7 +51,7 @@ let
       -T \
       -L 127.0.0.1:${toString cfg.localPort}:127.0.0.1:${toString cfg.remotePort} \
       ${lib.escapeShellArg cfg.sshHost} \
-      python3 - --port ${toString cfg.remotePort}${lib.optionalString cfg.verbose " --verbose"} \
+      ${lib.escapeShellArg remoteCommand} \
       < ${proxyScript} \
       >> ${lib.escapeShellArg "${home}/Library/Logs/tailscale-via-server.out.log"} \
       2>> ${lib.escapeShellArg "${home}/Library/Logs/tailscale-via-server.err.log"}

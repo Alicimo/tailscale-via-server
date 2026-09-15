@@ -5,12 +5,14 @@ import argparse
 import asyncio
 import contextlib
 import functools
+import os
 
 ALLOWED_SUFFIXES = ("tailscale.com", "tailscale.io")
 LISTEN_ADDRESS = "127.0.0.1"
 MAX_HEADER_BYTES = 16_384
 REQUEST_TIMEOUT_SECONDS = 10
 CONNECT_TIMEOUT_SECONDS = 10
+PARENT_CHECK_INTERVAL_SECONDS = 1
 
 
 def destination_allowed(host: str, port: int) -> bool:
@@ -154,7 +156,14 @@ async def handle_client(
         await close_writer(writer)
 
 
-async def main(port: int, verbose: bool = False) -> None:
+async def wait_for_parent_exit(parent_pid: int) -> None:
+    while os.getppid() == parent_pid:
+        await asyncio.sleep(PARENT_CHECK_INTERVAL_SECONDS)
+
+
+async def main(port: int, parent_pid: int, verbose: bool = False) -> None:
+    if os.getppid() != parent_pid:
+        raise RuntimeError("SSH parent exited before proxy startup")
     server = await asyncio.start_server(
         functools.partial(handle_client, verbose=verbose),
         LISTEN_ADDRESS,
@@ -164,12 +173,14 @@ async def main(port: int, verbose: bool = False) -> None:
     if verbose:
         print(f"LISTEN {LISTEN_ADDRESS}:{port}", flush=True)
     async with server:
-        await server.serve_forever()
+        # The script arrives over stdin, so EOF cannot indicate that SSH exited.
+        await wait_for_parent_exit(parent_pid)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, choices=range(1, 65536), required=True)
+    parser.add_argument("--parent-pid", type=int, required=True)
     parser.add_argument("--verbose", action="store_true")
     arguments = parser.parse_args()
-    asyncio.run(main(arguments.port, arguments.verbose))
+    asyncio.run(main(arguments.port, arguments.parent_pid, arguments.verbose))

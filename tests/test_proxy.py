@@ -8,6 +8,7 @@ from unittest import mock
 import tailscale_connect_proxy as proxy
 
 REAL_OPEN_CONNECTION = asyncio.open_connection
+REAL_START_SERVER = asyncio.start_server
 
 
 @contextlib.asynccontextmanager
@@ -183,6 +184,63 @@ class ProxySocketTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("ERROR", output.getvalue())
         upstream.assert_not_awaited()
+
+
+class LifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_main_closes_listener_when_parent_exits(self):
+        parent_alive = True
+        server_started = asyncio.Event()
+        started_server = None
+
+        async def capture_server(*args, **kwargs):
+            nonlocal started_server
+            started_server = await REAL_START_SERVER(*args, **kwargs)
+            server_started.set()
+            return started_server
+
+        def parent_pid():
+            return 42 if parent_alive else 1
+
+        output = io.StringIO()
+        with (
+            mock.patch.object(proxy.os, "getppid", side_effect=parent_pid),
+            mock.patch.object(
+                proxy.asyncio, "start_server", side_effect=capture_server
+            ),
+            mock.patch.object(proxy, "PARENT_CHECK_INTERVAL_SECONDS", 0.01),
+            contextlib.redirect_stdout(output),
+        ):
+            proxy_task = asyncio.create_task(proxy.main(0, 42))
+            await asyncio.wait_for(server_started.wait(), timeout=1)
+            port = started_server.sockets[0].getsockname()[1]
+
+            reader, writer = await REAL_OPEN_CONNECTION(proxy.LISTEN_ADDRESS, port)
+            writer.write(b"CONNECT example.com:443 HTTP/1.1\r\n\r\n")
+            await writer.drain()
+            self.assertTrue(
+                (await asyncio.wait_for(reader.read(), timeout=1)).startswith(
+                    b"HTTP/1.1 403 Forbidden\r\n"
+                )
+            )
+            await proxy.close_writer(writer)
+            self.assertFalse(proxy_task.done())
+
+            parent_alive = False
+            await asyncio.wait_for(proxy_task, timeout=1)
+
+        with self.assertRaises(OSError):
+            await REAL_OPEN_CONNECTION(proxy.LISTEN_ADDRESS, port)
+
+    async def test_main_refuses_to_bind_after_parent_already_exited(self):
+        start_server = mock.AsyncMock()
+        with (
+            mock.patch.object(proxy.os, "getppid", return_value=1),
+            mock.patch.object(proxy.asyncio, "start_server", start_server),
+            self.assertRaisesRegex(RuntimeError, "SSH parent exited"),
+        ):
+            await proxy.main(39081, 42)
+
+        start_server.assert_not_awaited()
 
 
 if __name__ == "__main__":

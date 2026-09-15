@@ -13,14 +13,15 @@ fixed loopback URL. A per-user LaunchAgent starts at login and keeps one
 foreground SSH session open. That session:
 
 1. forwards `127.0.0.1:39082` to `127.0.0.1:39081` on the server; and
-2. runs the proxy by streaming this repository's Python file to remote
-   `python3 - --port 39081` over that same SSH session.
+2. runs the proxy by streaming this repository's Python file to remote Python
+   over that same SSH session.
 
 No remote file or remote service is installed. The tunnel uses macOS's native
 SSH client so Apple-specific settings such as `UseKeychain` remain supported.
 SSH uses BatchMode, strict host key checking, a connection timeout,
 forward-failure checking, no TTY, and server-alive checks. launchd restarts the
-session with throttled retries.
+session with throttled retries. The proxy monitors its SSH parent process so a
+dropped session cannot leave an orphan holding the remote port.
 
 Only HTTPS CONNECT requests to port 443 whose host is exactly, or is a
 subdomain of, `tailscale.com` or `tailscale.io` are allowed. Tailscale
@@ -93,8 +94,9 @@ still apply.
 - An existing noninteractive SSH key and SSH config for the configured server.
   The server's host key must already be in `known_hosts`; interactive host-key
   prompts are deliberately disabled.
-- The SSH account on the server must be able to run Python 3.12 and make the
-  permitted outbound HTTPS connections. No root SSH credentials are needed.
+- The SSH account on the server must have `/bin/sh`, be able to run Python 3.12,
+  and make the permitted outbound HTTPS connections. No root SSH credentials
+  are needed.
 - The configured macOS user must be the user running the SSH configuration and
   login session.
 

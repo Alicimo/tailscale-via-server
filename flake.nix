@@ -105,6 +105,7 @@
               }
               ''
                 grep -Fq '/usr/bin/ssh' "$tunnel"
+                grep -Fq -- '--parent-pid "$PPID"' "$tunnel"
                 touch $out
               '';
         }

@@ -30,10 +30,11 @@ traffic remains direct between the normal Tailscale node and its peers; it is
 not sent through this HTTP proxy.
 
 This is not a DNS forwarder. The external server resolves the `tailscale.com`
-and `tailscale.io` endpoint names contained in CONNECT requests. The login
-helper passes `--accept-dns=false`, leaving ordinary DNS with the Mac's
-configured resolvers instead of routing it through Tailscale. nix-darwin still
-installs its split `ts.net` resolver for MagicDNS.
+and `tailscale.io` endpoint names contained in CONNECT requests. By default,
+the login helper passes `--accept-dns=false`, leaving ordinary DNS with the
+Mac's configured resolvers instead of routing it through Tailscale. Pass
+`--accept-dns=true` to the login command to override this default. nix-darwin
+still installs its split `ts.net` resolver for MagicDNS.
 
 If the SSH session or proxy is absent, the fixed proxy URL has nothing
 listening and Tailscale control-plane/DERP HTTP(S) traffic fails closed rather

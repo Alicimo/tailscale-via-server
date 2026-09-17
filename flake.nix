@@ -32,6 +32,7 @@
                 system.stateVersion = 7;
                 services."tailscale-via-server" = {
                   enable = true;
+                  tailscalePackage = testTailscale;
                 };
                 launchd.daemons.tailscaled.serviceConfig.EnvironmentVariables.UNRELATED = "preserved";
               })
@@ -63,6 +64,9 @@
             ];
           };
           pkgs = import nixpkgs { inherit system; };
+          testTailscale = pkgs.writeShellScriptBin "tailscale" ''
+            printf '%s\n' "$@" > "$TAILSCALE_ARGS"
+          '';
           cli = pkgs.lib.findFirst (
             package: pkgs.lib.getName package == "tailscale-via-server"
           ) null evaluated.config.environment.systemPackages;
@@ -114,14 +118,23 @@
 
           cli-defaults =
             assert cli != null;
-            pkgs.runCommand "tailscale-via-server-cli-defaults"
-              {
-                nativeBuildInputs = [ pkgs.gnugrep ];
+            pkgs.runCommand "tailscale-via-server-cli-defaults" { } ''
+              export TAILSCALE_ARGS="$TMPDIR/tailscale-args"
+              curl() {
+                return 0
               }
-              ''
-                grep -Fq 'tailscale login --accept-dns=false "$@"' ${cli}/bin/tailscale-via-server
-                touch $out
-              '';
+              export -f curl
+
+              ${cli}/bin/tailscale-via-server login
+              printf '%s\n' login --accept-dns=false > "$TMPDIR/expected"
+              cmp "$TMPDIR/expected" "$TAILSCALE_ARGS"
+
+              ${cli}/bin/tailscale-via-server login --accept-dns=true
+              printf '%s\n' login --accept-dns=false --accept-dns=true > "$TMPDIR/expected"
+              cmp "$TMPDIR/expected" "$TAILSCALE_ARGS"
+
+              touch $out
+            '';
         }
       );
     };

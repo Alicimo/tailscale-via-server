@@ -30,9 +30,10 @@ traffic remains direct between the normal Tailscale node and its peers; it is
 not sent through this HTTP proxy.
 
 This is not a DNS forwarder. The external server resolves the `tailscale.com`
-and `tailscale.io` endpoint names contained in CONNECT requests, but MagicDNS
-and the Mac's ordinary upstream DNS queries keep their existing
-Tailscale/macOS behavior.
+and `tailscale.io` endpoint names contained in CONNECT requests. The login
+helper passes `--accept-dns=false`, leaving ordinary DNS with the Mac's
+configured resolvers instead of routing it through Tailscale. nix-darwin still
+installs its split `ts.net` resolver for MagicDNS.
 
 If the SSH session or proxy is absent, the fixed proxy URL has nothing
 listening and Tailscale control-plane/DERP HTTP(S) traffic fails closed rather
@@ -85,8 +86,8 @@ tailscale-via-server login
 
 The second command is a one-time login (or can be repeated when needed). It
 checks the server proxy first and then invokes the real Tailscale browser
-login. Existing Tailscale state remains durable and normal key expiry rules
-still apply.
+login with Tailscale DNS disabled. Existing Tailscale state remains durable
+and normal key expiry rules still apply.
 
 ## Prerequisites
 

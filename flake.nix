@@ -63,6 +63,9 @@
             ];
           };
           pkgs = import nixpkgs { inherit system; };
+          cli = pkgs.lib.findFirst (
+            package: pkgs.lib.getName package == "tailscale-via-server"
+          ) null evaluated.config.environment.systemPackages;
         in
         {
           proxy-tests =
@@ -106,6 +109,17 @@
               ''
                 grep -Fq '/usr/bin/ssh' "$tunnel"
                 grep -Fq -- '--parent-pid "$PPID"' "$tunnel"
+                touch $out
+              '';
+
+          cli-defaults =
+            assert cli != null;
+            pkgs.runCommand "tailscale-via-server-cli-defaults"
+              {
+                nativeBuildInputs = [ pkgs.gnugrep ];
+              }
+              ''
+                grep -Fq 'tailscale login --accept-dns=false "$@"' ${cli}/bin/tailscale-via-server
                 touch $out
               '';
         }

@@ -109,7 +109,7 @@ let
           export http_proxy="$proxy_url" https_proxy="$proxy_url"
           unset NO_PROXY no_proxy ALL_PROXY all_proxy
           shift
-          exec tailscale login "$@"
+          exec tailscale login --accept-dns=false "$@"
           ;;
         restart)
           exec launchctl kickstart -k "$service_domain"
